@@ -26,73 +26,51 @@ class MCPClient {
 
   async processQuery(query: string): Promise<string> {
     try {
-    // Step 1: Get all available tool names from MCPService and pass them,
-    // along with the user query, to ToolSelectorService to determine which tools to use.
-    const availableToolNames = this.mcpService.tools.map(t => t.name);
-    const selectedToolNames = await this.toolSelector.selectTool(query, availableToolNames);
+      // Step 1: Get all available tool names from MCPService and pass them, along with the user query, to ToolSelectorService to determine which tools to use.
+      const availableToolNames = this.mcpService.tools.map(t => t.name);
+      const selectedToolNames = await this.toolSelector.selectTool(query, availableToolNames);
 
-    console.log("Tools suggested for this query:", selectedToolNames);
+      console.log("Tools suggested for this query:", selectedToolNames);
 
-    // Step 2: If no tools are selected (null response), log a message and proceed with an empty tool list.
-    if (!selectedToolNames) {
-      console.log("No tools were selected for this query. Proceeding without tools.");
-      this.llmService.setSelectedTools([]); // Inform LLMService that no tools will be used.
-    } else {
-      // Step 3: Pass the selected tool names to LLMService so it can consider them in its processing.
-      this.llmService.setSelectedTools(selectedToolNames);
-    }
+      // Step 2: Pass the selected tool names to LLMService, even if no tools are selected.
+      this.llmService.setSelectedTools(selectedToolNames || []);
 
-    // Ensure toolsToProcess is a valid array, even if selectedToolNames is null.
-    const toolsToProcess = selectedToolNames || [];
+      // Step 3: Send the original query to the LLM (language model) service and capture the response.
+      const ollamaResponse = await this.llmService.callModelAPI(query);
+      const responseContent = ollamaResponse.message?.content || "No response";
 
-    // Step 4: Send the original query to the LLM (language model) service and capture the response.
-    const ollamaResponse = await this.llmService.callModelAPI(query);
-    const responseContent = ollamaResponse.message?.content || "No response";
+      // Extract tool call instructions (if any) from the model's response.
+      const toolCalls = this.toolService.parseToolCalls(ollamaResponse);
 
-    // Extract tool call instructions (if any) from the model's response.
-    const toolCalls = this.toolService.parseToolCalls(ollamaResponse);
+      // If no tool calls were suggested by the model, return the response as-is.
+      if (!toolCalls || toolCalls.length === 0) {
+        return responseContent;
+      }
 
-    // If no tool calls were suggested by the model, return the response as-is.
-    if (!toolCalls) {
-      return responseContent;
-    }
-
-    let finalResponse = `${responseContent}\n\n`;
-
-    // Loop through each tool call suggested by the model.
-    for (const toolCall of toolCalls) {
+      // Assume a specific tool is being used
+      const toolCall = toolCalls[0];
       const toolName = toolCall.name;
 
-      // If the tool was not part of the selected/suggested tools, skip it.
-      if (!toolsToProcess.includes(toolName)) {
-        finalResponse += `[Skipping tool ${toolName} - not suggested for this query]\n`;
-        continue;
-    }
+      // Normalize and prepare the tool arguments for execution.
+      const toolArgs = this.toolService.normalizeToolArguments(toolCall.arguments);
 
-    // Normalize and prepare the tool arguments for execution.
-    const toolArgs = this.toolService.normalizeToolArguments(toolCall.arguments);
-    finalResponse += `[Calling tool ${toolName} with args ${JSON.stringify(toolArgs)}]\n`;
+      // Call the actual tool via MCPService and get the result.
+      const result = await this.mcpService.callTool(toolName, toolArgs);
+      const formattedResult = formatToolResult(result);
 
-    // Call the actual tool via MCPService and get the result.
-    const result = await this.mcpService.callTool(toolName, toolArgs);
-    const formattedResult = formatToolResult(result);
+      // Create a new prompt for the model to analyze the tool's output.
+      const analysisPrompt = `Analyze the following data and provide insights:\n${formattedResult}`;
+      const analysisResponse = await this.llmService.callModelAPI(analysisPrompt);
+      const analysisContent = analysisResponse.message?.content || "No analysis provided.";
 
-    // Create a new prompt for the model to analyze the tool's output.
-    const analysisPrompt = `Analyze the following data and provide insights:\n${formattedResult}`;
-    const analysisResponse = await this.llmService.callModelAPI(analysisPrompt);
-    const analysisContent = analysisResponse.message?.content || "No analysis provided.";
+      // Construct the final response, including tool call results and analysis.
+      const finalResponse = `${responseContent}\n\nAnalysis:\n${analysisContent}`;
 
-    // Append the analysis result to the final response.
-    finalResponse += `\nAnalysis:\n${analysisContent}`;
-  }
-
-  // Return the final constructed response, including tool call results and analysis.
-  return finalResponse;
+      return finalResponse;
     } catch (error) {
       // In case of any error during the process, return a generic error message with details.
       return `An error occurred while processing your query: ${error instanceof Error ? error.message : String(error)}`;
     }
-
   }
 
   async chatLoop(): Promise<void> {
