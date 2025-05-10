@@ -47,8 +47,6 @@ class MCPClient {
         const result = await this.mcpService.callTool(toolName, toolArgs);
         const formattedResult = formatToolResult(result);
 
-        finalResponse += `\nTool result:\n${formattedResult}\n`;
-
         const analysisPrompt = `Analyze the following data and provide insights:\n${formattedResult}`;
         const analysisResponse = await this.llmService.callModelAPI(analysisPrompt);
         const analysisContent = analysisResponse.message?.content || "No analysis provided.";

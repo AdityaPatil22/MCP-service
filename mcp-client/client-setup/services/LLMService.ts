@@ -11,19 +11,19 @@ export class LLMService {
     ).join("\n\n");
 
     return `You are an assistant with access to the following tools: ${toolsDescription}
-When you need to use a tool, respond using this exact JSON format:
-{
-  "tool_calls": [
+    When you need to use a tool, respond using this exact JSON format:
     {
-      "name": "tool_name",
-      "arguments": {
-        "arg1": "value1",
-        "arg2": "value2"
-      }
+      "tool_calls": [
+        {
+          "name": "tool_name",
+          "arguments": {
+            "arg1": "value1",
+            "arg2": "value2"
+          }
+        }
+      ]
     }
-  ]
-}
-Only use tool_calls when a query requires external data. Otherwise, respond normally.`;
+    Only use tool_calls when a query requires external data. Otherwise, respond normally.`;
   }
 
   async callModelAPI(prompt: string): Promise<OllamaResponse> {

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc && chmod 755 build/index.js"
+    "build": "tsc && chmod 755 build/index.js",
+    "dev": "node build/index.js ../../packages/cve/build/index.js ../../packages/labs/build/index.js ../../packages/weather/build/index.js ../../packages/products/build/index.js"
   },
   "keywords": [],
   "author": "",
