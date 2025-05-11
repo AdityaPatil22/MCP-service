@@ -1,0 +1,6 @@
+{
+  "cve": "./../../packages/cve/build/index.js",
+  "labs": "./../../packages/labs/build/index.js",
+  "products": "./../../packages/products/build/index.js",
+  "weather": "./../../packages/weather/build/index.js"
+}

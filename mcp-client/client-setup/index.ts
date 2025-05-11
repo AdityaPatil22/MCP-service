@@ -6,6 +6,7 @@ import { ToolSelectorService } from "./services/ToolSelectorService.js";
 import { formatToolResult } from "./utils/formatters.js";
 import { config } from "./config/config.js";
 import { ToolCall } from "./types/interfaces.js";
+import { manifest } from "./start-all.js";
 
 class MCPClient {
   private mcpService: MCPService;
@@ -69,7 +70,7 @@ class MCPClient {
       }
 
       const toolResults = await this.handleToolCalls(toolCalls);
-      return `${responseContent}${toolResults}`;
+      return toolResults;
     } catch (error) {
       return `An error occurred while processing your query: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -106,7 +107,7 @@ class MCPClient {
 }
 
 async function main(): Promise<void> {
-  const buildPaths = ["../../packages/cve/build/index.js", "../../packages/labs/build/index.js", "../../packages/weather/build/index.js", "../../packages/products/build/index.js"]
+  const buildPaths = Object.values(manifest) as string[];
   const mcpClient = new MCPClient();
 
   try {
